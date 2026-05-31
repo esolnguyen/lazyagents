@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lazyagents"
+version = "0.1.0"
+description = "A repeatable engineering workflow for Claude Code — phases, skills, verification, and local memory. CLI-first, Claude-only."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["claude", "claude-code", "ai", "cli", "workflow", "agents"]
+dependencies = []
+
+[project.scripts]
+lazyagents = "lazyagents.cli:main"
+
+[tool.hatch.build.targets.wheel]
+# assets/ lives inside the package dir and is bundled automatically (non-.py
+# files are included). No force-include needed — that would duplicate entries.
+packages = ["src/lazyagents"]
+artifacts = ["src/lazyagents/assets/**"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/lazyagents", "README.md"]

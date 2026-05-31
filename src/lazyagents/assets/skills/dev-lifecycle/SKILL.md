@@ -1,0 +1,106 @@
+---
+name: dev-lifecycle
+description: LazyAgents · Structured SDLC workflow — 8 sequential steps that produce docs across 5 phase folders (requirements, design, planning, implementation, testing). Use when the user wants to build a feature end-to-end, or run any individual step (new requirement, review requirements, review design, execute plan, update planning, check implementation, write tests, code review).
+---
+
+# Dev Lifecycle
+
+8 sequential steps producing docs in `docs/ai/` (across 5 phase folders: requirements, design, planning, implementation, testing). Flow: 1→2→3→4→(5 after each task)→6→7→8.
+
+## Early-Phase Clarification Contract
+
+For Phases 1-3, converge on shared understanding before docs or implementation momentum:
+
+1. List every material product, UX, architecture, scope, validation, rollout, contradiction, trade-off, or open question from the request, memory, and existing docs.
+2. Ask until each item is answered, explicitly deferred, or accepted by the user as a named assumption. Do not silently infer material decisions.
+3. Ask one decision at a time; include why it matters, 2-3 viable options when useful, and your recommended answer with brief rationale.
+4. Do not create, update, approve, or transition past requirements/design/planning while material open questions remain.
+5. Restate the shared understanding before updating docs or suggesting the next phase.
+
+## Prerequisite
+
+Before starting any phase, run `lazyagents lint` to verify the base `docs/ai/` structure exists and is valid.
+
+If working on a specific feature, also run `lazyagents lint --feature <name>` to validate feature-scoped docs.
+
+If lint fails because project docs are not initialized, run `lazyagents init -a -e claude --built-in --yes` (non-interactive — required when running inside an agent so init does not block on prompts), then rerun lint. Do not proceed until checks pass.
+
+For a **new feature start** (Phase 1 or `/new-requirement`), apply the shared worktree setup in [references/worktree-setup.md](references/worktree-setup.md) before phase work. This setup is worktree-first by default and includes explicit no-worktree fallback, context verification, and dependency bootstrap.
+
+## Phases
+
+| # | Phase | Reference | When |
+|---|-------|-----------|------|
+| 1 | New Requirement | [references/new-requirement.md](references/new-requirement.md) | User wants to add a feature |
+| 2 | Review Requirements | [references/review-requirements.md](references/review-requirements.md) | Requirements doc needs validation |
+| 3 | Review Design | [references/review-design.md](references/review-design.md) | Design doc needs validation against requirements |
+| 4 | Execute Plan | [references/execute-plan.md](references/execute-plan.md) | Ready to implement tasks from planning doc |
+| 5 | Update Planning | [references/update-planning.md](references/update-planning.md) | Auto-trigger after completing any task in Phase 4 |
+| 6 | Check Implementation | [references/check-implementation.md](references/check-implementation.md) | Verify code matches design |
+| 7 | Write Tests | [references/writing-test.md](references/writing-test.md) | Add test coverage (100% target) |
+| 8 | Code Review | [references/code-review.md](references/code-review.md) | Final pre-push review |
+
+Load only the reference file for the current phase. For Phase 1, also load [references/worktree-setup.md](references/worktree-setup.md).
+
+## Resuming Work
+
+If the user wants to continue work on an existing feature:
+
+1. Check branch and worktree state before phase work:
+   - Branch check: `git branch --show-current`
+   - Worktree check: `git worktree list`
+2. Determine target context for `<feature-name>` (all `.worktrees/` paths are relative to the **project root** — the directory containing `.git`):
+   - Prefer worktree `<project-root>/.worktrees/feature-<name>` when it exists.
+   - Otherwise use branch `feature-<name>` in the current repository.
+3. Before switching, explicitly confirm target with the user (branch or worktree path).
+4. After user confirmation, switch to the confirmed context first:
+   - Worktree: run phase commands with `workdir=<project-root>/.worktrees/feature-<name>`.
+   - Branch: checkout `feature-<name>` in current repo.
+5. After switching, run `lazyagents lint --feature <feature-name>` in the active branch/worktree context.
+6. Then run the phase detector using the installed skill directory (same resolution rule as reference docs), not a workspace-relative `skills/...` path:
+   - Resolve `<skill-dir>` as the directory containing this `SKILL.md`.
+   - Run `<skill-dir>/scripts/check-status.sh <feature-name>` (or `cd <skill-dir> && scripts/check-status.sh <feature-name>`).
+   Use the suggested phase from this script based on doc state and planning progress.
+
+## Backward Transitions
+
+Not every phase moves forward. When a phase reveals problems, loop back:
+
+- Phase 2 finds fundamental gaps → back to **Phase 1** to revise requirements
+- Phase 3 finds requirements gaps → back to **Phase 2**; design doesn't fit → revise design in place
+- Phase 6 finds major deviations → back to **Phase 3** (design wrong) or **Phase 4** (implementation wrong)
+- Phase 7 tests reveal design flaws → back to **Phase 3**
+- Phase 8 finds blocking issues → back to **Phase 4** (fix code) or **Phase 7** (add tests)
+
+## Doc Convention
+
+New features: run `lazyagents docs init-feature <name>` and fill the returned paths. The command uses configured phases and creates `docs/ai/{phase}/YYYY-MM-DD-feature-{name}.md` with the current local date.
+
+Existing features: use the latest matching `docs/ai/{phase}/YYYY-MM-DD-feature-{name}.md`. If none exists, use `docs/ai/{phase}/feature-{name}.md`. Keep `<name>` aligned with branch/worktree `feature-<name>`.
+
+Older CLI fallback: copy each configured phase `README.md` to `docs/ai/{phase}/feature-{name}.md`, preserving frontmatter.
+
+Phases: `requirements/`, `design/`, `planning/`, `implementation/`, `testing/`.
+
+## Memory Integration
+
+In phases with clarification questions (typically 1-3), run these CLI commands (see the `memory` skill for full options):
+
+1. **Before asking** — search first, only ask about uncovered gaps: `lazyagents memory search --query "<topic>"`
+2. **After clarification** — store for future sessions: `lazyagents memory store --title "<title>" --content "<insight>" --tags "<tags>"`
+
+## Red Flags and Rationalizations
+
+| Rationalization | Why It's Wrong | Do Instead |
+|---|---|---|
+| "Skip to coding, requirements are clear" | Ambiguity hides in assumptions | Run Phase 1-3 first |
+| "Design hasn't changed, skip Phase 6" | Code drifts from design during implementation | Check implementation against design |
+| "Tests slow us down, ship first" | Bugs in production are slower | Write tests in Phase 4 and 7 |
+| "Just a small change, no review needed" | Small changes cause big outages | Phase 8 applies to all changes |
+
+## Rules
+
+- Read existing `docs/ai/` before changes. Keep diffs minimal.
+- Use mermaid diagrams for architecture visuals.
+- After each phase, summarize output and suggest next phase.
+- Apply the `verify` skill before completing Phase 4 tasks, Phase 6 checks, Phase 7 coverage claims, and Phase 8 review items. No phase transition without fresh evidence.
